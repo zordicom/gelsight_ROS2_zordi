@@ -34,9 +34,9 @@ ros2 run gelsight_capture gelsight_image_server --ros-args -p config_path:=/home
 
 ### 4. View in RViz2
 ```bash
-ros2 run rviz2 rviz2
+rviz2
 ```
-Add Image display → set topic to `/gelsight_capture/image`
+Add →  By topic → add `/gelsight_capture/image` topic → Digit / Gelsight stream is displayed on the left of the screen
 
 ## Troubleshooting
 
@@ -58,7 +58,7 @@ ros2 topic hz /gelsight_capture/image
 ## File Structure
 
 ```
-gelsight_ROS2_interface/
+gelsight_ROS2_Zordi/
 ├── gelsight_capture/
 │   ├── config/gsmini.yaml          # Main config file
 │   ├── gelsight_capture/
@@ -71,15 +71,15 @@ gelsight_ROS2_interface/
 ## Quick Commands
 
 ```bash
-# Build
+# Build after making any changes (changing sensor type in yaml)
 colcon build --packages-select gelsight_capture
 
 # Run
 ros2 run gelsight_capture gelsight_image_server --ros-args -p config_path:=/home/zordi/ros2_ws/install/gelsight_capture/share/gelsight_capture/config/gsmini.yaml
 
-# Monitor
+# Monitor if the topic is publishing or not 
 ros2 topic hz /gelsight_capture/image
 
 # Visualize
-ros2 run rviz2 rviz2
+rviz2
 ``` 
