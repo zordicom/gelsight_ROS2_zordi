@@ -9,7 +9,7 @@ from threading import Thread, Lock
 if os.name == 'nt':
     import winrt.windows.devices.enumeration as windows_devices
 
-VIDEO_DEVICES = 1 # video device is labelled as 4 in windows
+VIDEO_DEVICES = 4 # video device is labelled as 4 in windows
 
 def get_camera_id(camera_name) -> int:
     """Find the camera ID that has the corresponding camera name."""
