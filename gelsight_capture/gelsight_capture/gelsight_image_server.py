@@ -31,7 +31,7 @@ class GelsightImageServer(Node):
         self.cvbridge = CvBridge() # for converting ROS images to OpenCV images
         
         # the actual camera that captures the images
-        self.camera2d = Camera2D(dev_type="GelSight Mini", 
+        self.camera2d = Camera2D(dev_type=config["device_name"], 
                                  imgh=self.imgh, 
                                  imgw=self.imgw)
         self.camera2d.start()

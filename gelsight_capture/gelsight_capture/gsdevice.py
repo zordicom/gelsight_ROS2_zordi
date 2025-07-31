@@ -9,7 +9,7 @@ from threading import Thread, Lock
 if os.name == 'nt':
     import winrt.windows.devices.enumeration as windows_devices
 
-VIDEO_DEVICES = 4 # video device is labelled as 4 in windows
+VIDEO_DEVICES = 1 # video device is labelled as 4 in windows
 
 def get_camera_id(camera_name) -> int:
     """Find the camera ID that has the corresponding camera name."""
@@ -22,11 +22,25 @@ def get_camera_id(camera_name) -> int:
             with open(real_file, "rt") as name_file:
                 name = name_file.read().rstrip()
             if camera_name in name:
-                cam_num = int(re.search("\d+$", file).group(0))
-                found = "FOUND!"
+                try:
+                    cam_num = int(re.search(r"\d+$", file).group(0))
+                    found = "FOUND!"
+                    # Test if camera can be opened before using it
+                    test_cap = cv2.VideoCapture(cam_num)
+                    if test_cap.isOpened():
+                        test_cap.release()
+                        print("{} {} -> {} (WORKING)".format(found, file, name))
+                        break
+                    else:
+                        test_cap.release()
+                        print("{} {} -> {} (CAN'T OPEN)".format(found, file, name))
+                        cam_num = None  # Reset if can't open
+                except Exception as e:
+                    found = "ERROR"
+                    print("{} {} -> {} (ERROR: {})".format(found, file, name, e))
             else:
                 found = "      "
-            print("{} {} -> {}".format(found, file, name))
+                print("{} {} -> {}".format(found, file, name))
 
     return cam_num
 
@@ -114,6 +128,9 @@ class Camera2D:
 
     def read(self):
         self.read_lock.acquire()
+        if self.frame is None:
+            self.read_lock.release()
+            return None
         frame = self.get_resize_crop(self.frame.copy())
         self.read_lock.release()
         return frame
@@ -127,6 +144,8 @@ class Camera2D:
 
     def get_resize_crop(self, img):
         """Resize and crop the image to the desired size."""
+        if img is None:
+            return None
         # remove 1/7th of border from each size
         border_size_x, border_size_y = int(img.shape[0] * (1 / 7)), int(
             np.floor(img.shape[1] * (1 / 7))

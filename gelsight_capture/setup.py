@@ -16,6 +16,7 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*'))),
         # Include config files
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
+        (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
         # Include resource files
         (os.path.join('share', package_name, 'gelsight_resources'), glob(os.path.join('gelsight_resources', '*'))),
     ],
