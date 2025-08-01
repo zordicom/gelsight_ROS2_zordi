@@ -45,6 +45,8 @@ Add Image display → set topic to `/gelsight_capture/image`
 
 ## Troubleshooting
 
+### **Step 1: Basic Checks**
+
 **Camera not found:**
 ```bash
 ls /dev/video* && cat /sys/class/video4linux/*/name
@@ -58,6 +60,47 @@ python3 -c "import cv2; cap = cv2.VideoCapture(0); print('Camera available:', ca
 **Check topic data:**
 ```bash
 ros2 topic hz /gelsight_capture/image
+```
+
+### **Step 2: Camera Lock Issues (If you get "Camera not found" error after connecting sensor)**
+
+If you get the "Camera not found" error even after connecting the sensor, follow these steps:
+
+**1. Check for processes using cameras:**
+```bash
+lsof /dev/video*
+ps aux | grep gelsight
+ps aux | grep ros2
+```
+
+**2. Kill all camera-related processes:**
+```bash
+pkill -f ros2
+pkill -f python
+pkill -f gelsight
+pkill -f opencv
+```
+
+**3. Reset camera modules:**
+```bash
+sudo modprobe -r uvcvideo
+sudo modprobe uvcvideo
+```
+
+**4. Check camera permissions:**
+```bash
+ls -l /dev/video*
+sudo chmod 666 /dev/video*
+```
+
+**5. Test camera availability:**
+```bash
+python3 -c "import cv2; cap = cv2.VideoCapture(5); print('Video5 available:', cap.isOpened()); cap.release()"
+```
+
+**6. Quick reset command:**
+```bash
+pkill -f ros2 && pkill -f python && sudo modprobe -r uvcvideo && sudo modprobe uvcvideo
 ```
 
 ## File Structure
