@@ -52,8 +52,9 @@ class GelsightImageServer(Node):
     def image_timer_callback(self):
         original_image = self.camera2d.read()
         # self.get_logger().info(f'image type: {type(original_image)}')
-        ros_image = self.cvbridge.cv2_to_imgmsg(original_image, encoding='bgr8')
-        self.image_publisher.publish(ros_image)
+        if original_image is not None:
+            ros_image = self.cvbridge.cv2_to_imgmsg(original_image, encoding='bgr8')
+            self.image_publisher.publish(ros_image)
         
 
 

@@ -104,11 +104,19 @@ class Camera2D:
         self.read_lock = Lock()
 
         """Connect to the camera using cv2 streamer."""
+        if self.dev_id is None:
+            print("Error: Camera not found for device type:", dev_type)
+            self.stream = None
+            self.frame = None
+            return
+            
         self.stream = cv2.VideoCapture(self.dev_id)
         self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         if self.stream is None or not self.stream.isOpened():
             print("Warning: unable to open video source: ", self.dev_id)
-        (self.grabbed, self.frame) = self.stream.read()
+            self.frame = None
+        else:
+            (self.grabbed, self.frame) = self.stream.read()
 
     def start(self):
         if self.started:
@@ -121,14 +129,15 @@ class Camera2D:
     
     def update(self):
         while self.started:
-            (grabbed, frame) = self.stream.read()
-            self.read_lock.acquire()
-            self.grabbed, self.frame = grabbed, frame
-            self.read_lock.release()
+            if self.stream is not None:
+                (grabbed, frame) = self.stream.read()
+                self.read_lock.acquire()
+                self.grabbed, self.frame = grabbed, frame
+                self.read_lock.release()
 
     def read(self):
         self.read_lock.acquire()
-        if self.frame is None:
+        if self.stream is None or self.frame is None:
             self.read_lock.release()
             return None
         frame = self.get_resize_crop(self.frame.copy())
