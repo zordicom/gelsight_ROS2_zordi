@@ -97,11 +97,11 @@ def generate_launch_description():
         name='gelsight_static_tf_publisher',
         parameters=[{'config_path': final_config_path}],
     )
-    ld.add_action(foxglove_launch)
-    ld.add_action(joy_launch)
+    # ld.add_action(foxglove_launch)
+    # ld.add_action(joy_launch)
     ld.add_action(image_server_launch)
-    ld.add_action(pointcloud_server_launch)
-    ld.add_action(gelsight_client_launch)
-    ld.add_action(tf_publisher_launch)
+    # ld.add_action(pointcloud_server_launch)
+    # ld.add_action(gelsight_client_launch)
+    # ld.add_action(tf_publisher_launch)
 
     return ld

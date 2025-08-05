@@ -1,6 +1,8 @@
 from cv_bridge import CvBridge
 
 import yaml
+import signal
+import sys
 
 import rclpy
 from rclpy.node import Node
@@ -31,7 +33,7 @@ class GelsightImageServer(Node):
         self.cvbridge = CvBridge() # for converting ROS images to OpenCV images
         
         # the actual camera that captures the images
-        self.camera2d = Camera2D(dev_type="GelSight Mini", 
+        self.camera2d = Camera2D(dev_type=config["device_name"], 
                                  imgh=self.imgh, 
                                  imgw=self.imgw)
         self.camera2d.start()
@@ -48,14 +50,27 @@ class GelsightImageServer(Node):
             callback=self.image_timer_callback,
             callback_group=multithread_group)
 
+        # Set up signal handler for graceful shutdown
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+
+    def signal_handler(self, signum, frame):
+        """Handle Ctrl+C and other termination signals gracefully."""
+        self.get_logger().info('Shutting down gracefully...')
+        if hasattr(self, 'camera2d') and self.camera2d is not None:
+            self.camera2d.stop()
+            if hasattr(self.camera2d, 'stream') and self.camera2d.stream is not None:
+                self.camera2d.stream.release()
+        # Don't call rclpy.shutdown() here as it can cause issues
+        # Let the main function handle shutdown properly
         
     def image_timer_callback(self):
         original_image = self.camera2d.read()
         # self.get_logger().info(f'image type: {type(original_image)}')
-        ros_image = self.cvbridge.cv2_to_imgmsg(original_image, encoding='bgr8')
-        self.image_publisher.publish(ros_image)
+        if original_image is not None:
+            ros_image = self.cvbridge.cv2_to_imgmsg(original_image, encoding='bgr8')
+            self.image_publisher.publish(ros_image)
         
-
 
 
 def main(args=None):
@@ -65,10 +80,17 @@ def main(args=None):
     executor = MultiThreadedExecutor()
     executor.add_node(server)
 
-    executor.spin()
-
-    server.destroy_node()
-    rclpy.shutdown()
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        server.get_logger().info('Keyboard interrupt received, shutting down...')
+    finally:
+        if hasattr(server, 'camera2d') and server.camera2d is not None:
+            server.camera2d.stop()
+            if hasattr(server.camera2d, 'stream') and server.camera2d.stream is not None:
+                server.camera2d.stream.release()
+        server.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

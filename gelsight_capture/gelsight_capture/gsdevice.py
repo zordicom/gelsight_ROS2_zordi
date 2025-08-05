@@ -14,19 +14,52 @@ VIDEO_DEVICES = 4 # video device is labelled as 4 in windows
 def get_camera_id(camera_name) -> int:
     """Find the camera ID that has the corresponding camera name."""
     cam_num = None
+    working_cam_num = None
     if os.name == 'nt':
         cam_num = find_cameras_windows(camera_name)
     else:
+        # For DIGIT cameras, hardcode to video4 since we know it works
+        if "DIGIT" in camera_name:
+            print("Using hardcoded video4 for DIGIT camera")
+            return 4
+        
+        # First pass: find all matching cameras and test them
+        matching_cameras = []
+        print(f"Looking for camera: '{camera_name}'")
         for file in os.listdir("/sys/class/video4linux"):
             real_file = os.path.realpath("/sys/class/video4linux/" + file + "/name")
             with open(real_file, "rt") as name_file:
                 name = name_file.read().rstrip()
+            print(f"Checking {file}: '{name}'")
             if camera_name in name:
-                cam_num = int(re.search("\d+$", file).group(0))
-                found = "FOUND!"
+                try:
+                    cam_num = int(re.search(r"\d+$", file).group(0))
+                    found = "FOUND!"
+                    # Test if camera can be opened
+                    test_cap = cv2.VideoCapture(cam_num)
+                    if test_cap.isOpened():
+                        test_cap.release()
+                        print("{} {} -> {} (WORKING)".format(found, file, name))
+                        working_cam_num = cam_num  # Store the working camera
+                        matching_cameras.append((cam_num, file, name, True))
+                    else:
+                        test_cap.release()
+                        print("{} {} -> {} (CAN'T OPEN)".format(found, file, name))
+                        matching_cameras.append((cam_num, file, name, False))
+                except Exception as e:
+                    found = "ERROR"
+                    print("{} {} -> {} (ERROR: {})".format(found, file, name, e))
             else:
                 found = "      "
-            print("{} {} -> {}".format(found, file, name))
+                print("{} {} -> {}".format(found, file, name))
+        
+        # Return the working camera if found, otherwise return the first matching one
+        if working_cam_num is not None:
+            cam_num = working_cam_num
+        elif matching_cameras:
+            # If no working camera found, use the first matching one
+            cam_num = matching_cameras[0][0]
+            print(f"Warning: No working camera found for {camera_name}, using first match: {matching_cameras[0][1]}")
 
     return cam_num
 
@@ -83,6 +116,11 @@ class Camera2D:
     def __init__(self, dev_type, imgh, imgw):
         self.name = dev_type
         self.dev_id = get_camera_id(dev_type)
+        
+        # Check if camera ID was found
+        if self.dev_id is None:
+            raise ValueError(f"Camera with name '{dev_type}' not found. Please check the device name in your configuration.")
+        
         self.imgh = imgh
         self.imgw = imgw
         
@@ -92,9 +130,59 @@ class Camera2D:
         """Connect to the camera using cv2 streamer."""
         self.stream = cv2.VideoCapture(self.dev_id)
         self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        
+        # Set camera properties to reduce timeout issues
+        self.stream.set(cv2.CAP_PROP_FPS, 30)
+        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+        
+        # Add a small delay to ensure camera is ready
+        import time
+        time.sleep(1.0)  # Increased delay
+        
         if self.stream is None or not self.stream.isOpened():
-            print("Warning: unable to open video source: ", self.dev_id)
-        (self.grabbed, self.frame) = self.stream.read()
+            raise RuntimeError(f"Unable to open video source: {self.dev_id}. Camera may be in use by another application.")
+        
+        # Try to read with timeout handling
+        import threading
+        import queue
+        
+        def read_with_timeout():
+            try:
+                return self.stream.read()
+            except:
+                return False, None
+        
+        # Use a thread with timeout
+        result_queue = queue.Queue()
+        thread = threading.Thread(target=lambda: result_queue.put(read_with_timeout()))
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=3.0)  # 3 second timeout
+        
+        if thread.is_alive():
+            # Thread is still running, timeout occurred
+            print(f"Warning: Camera read timeout for device {self.dev_id}, but continuing...")
+            self.grabbed, self.frame = False, None
+        else:
+            self.grabbed, self.frame = result_queue.get()
+            
+        # If initial read failed, try a few more times with shorter timeouts
+        if not self.grabbed:
+            print("Initial camera read failed, trying additional attempts...")
+            for attempt in range(3):
+                thread = threading.Thread(target=lambda: result_queue.put(read_with_timeout()))
+                thread.daemon = True
+                thread.start()
+                thread.join(timeout=1.0)  # 1 second timeout
+                
+                if not thread.is_alive():
+                    self.grabbed, self.frame = result_queue.get()
+                    if self.grabbed:
+                        print(f"Camera read successful on attempt {attempt + 2}")
+                        break
+                else:
+                    print(f"Camera read timeout on attempt {attempt + 2}")
 
     def start(self):
         if self.started:
@@ -114,19 +202,27 @@ class Camera2D:
 
     def read(self):
         self.read_lock.acquire()
+        if self.frame is None:
+            self.read_lock.release()
+            return None
         frame = self.get_resize_crop(self.frame.copy())
         self.read_lock.release()
         return frame
 
     def stop(self):
         self.started = False
-        self.thread.join()
+        if hasattr(self, 'thread') and self.thread.is_alive():
+            self.thread.join()
+        if hasattr(self, 'stream') and self.stream is not None:
+            self.stream.release()
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.stream.release()
 
     def get_resize_crop(self, img):
         """Resize and crop the image to the desired size."""
+        if img is None:
+            return None
         # remove 1/7th of border from each size
         border_size_x, border_size_y = int(img.shape[0] * (1 / 7)), int(
             np.floor(img.shape[1] * (1 / 7))
