@@ -18,10 +18,10 @@ def get_camera_id(camera_name) -> int:
     if os.name == 'nt':
         cam_num = find_cameras_windows(camera_name)
     else:
-        # For DIGIT cameras, hardcode to video4 since we know it works
-        if "DIGIT" in camera_name:
-            print("Using hardcoded video4 for DIGIT camera")
-            return 4
+        # For DIGIT cameras, hardcode to video5 since we know it works
+        # if "DIGIT" in camera_name:
+        #     print("Using hardcoded video5 for DIGIT camera")
+        #     return 5
         
         # First pass: find all matching cameras and test them
         matching_cameras = []
