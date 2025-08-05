@@ -61,7 +61,8 @@ class GelsightImageServer(Node):
             self.camera2d.stop()
             if hasattr(self.camera2d, 'stream') and self.camera2d.stream is not None:
                 self.camera2d.stream.release()
-        rclpy.shutdown()
+        # Don't call rclpy.shutdown() here as it can cause issues
+        # Let the main function handle shutdown properly
         
     def image_timer_callback(self):
         original_image = self.camera2d.read()
