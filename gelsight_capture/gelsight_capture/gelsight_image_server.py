@@ -1,5 +1,5 @@
 from cv_bridge import CvBridge
-
+import cv2
 import yaml
 import signal
 import sys
@@ -70,6 +70,9 @@ class GelsightImageServer(Node):
         if original_image is not None:
             ros_image = self.cvbridge.cv2_to_imgmsg(original_image, encoding='bgr8')
             self.image_publisher.publish(ros_image)
+            
+            # test to Save  images
+            cv2.imwrite(f"/tmp/test_gelsight_{self.get_clock().now().nanoseconds}.jpg", original_image)
         
 
 
