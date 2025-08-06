@@ -42,27 +42,27 @@ class GelsightImageServer(Node):
         # image publisher
         self.image_publisher = self.create_publisher(
             msg_type=Image, 
-            topic='/gelsight_capture/image', 
+            topic='/follower/right/gelsight/image', 
             qos_profile=10)
-        image_timer_period = 0.05  # in seconds. roughly 15 Hz
+        image_timer_period = 0.03  # in seconds. roughly 33 Hz
         self.image_timer = self.create_timer(
             timer_period_sec=image_timer_period, 
             callback=self.image_timer_callback,
             callback_group=multithread_group)
 
-        # Set up signal handler for graceful shutdown
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
+    #     # # Set up signal handler for graceful shutdown
+    #     # signal.signal(signal.SIGINT, self.signal_handler)
+    #     # signal.signal(signal.SIGTERM, self.signal_handler)
 
-    def signal_handler(self, signum, frame):
-        """Handle Ctrl+C and other termination signals gracefully."""
-        self.get_logger().info('Shutting down gracefully...')
-        if hasattr(self, 'camera2d') and self.camera2d is not None:
-            self.camera2d.stop()
-            if hasattr(self.camera2d, 'stream') and self.camera2d.stream is not None:
-                self.camera2d.stream.release()
-        # Don't call rclpy.shutdown() here as it can cause issues
-        # Let the main function handle shutdown properly
+    # def signal_handler(self, signum, frame):
+    #     """Handle Ctrl+C and other termination signals gracefully."""
+    #     self.get_logger().info('Shutting down gracefully...')
+    #     if hasattr(self, 'camera2d') and self.camera2d is not None:
+    #         self.camera2d.stop()
+    #         if hasattr(self.camera2d, 'stream') and self.camera2d.stream is not None:
+    #             self.camera2d.stream.release()
+    #     # Don't call rclpy.shutdown() here as it can cause issues
+    #     # Let the main function handle shutdown properly
         
     def image_timer_callback(self):
         original_image = self.camera2d.read()
@@ -72,7 +72,7 @@ class GelsightImageServer(Node):
             self.image_publisher.publish(ros_image)
             
             # test to Save  images
-            cv2.imwrite(f"/tmp/test_gelsight_{self.get_clock().now().nanoseconds}.jpg", original_image)
+            # cv2.imwrite(f"/tmp/test_gelsight_{self.get_clock().now().nanoseconds}.jpg", original_image)
         
 
 
@@ -93,8 +93,10 @@ def main(args=None):
             if hasattr(server.camera2d, 'stream') and server.camera2d.stream is not None:
                 server.camera2d.stream.release()
         server.destroy_node()
-        rclpy.shutdown()
-
+        
+        # ✅ Only shutdown if not already shut down
+        if rclpy.ok():  
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

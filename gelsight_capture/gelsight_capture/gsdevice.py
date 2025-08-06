@@ -32,6 +32,7 @@ def get_camera_id(camera_name) -> int:
                 name = name_file.read().rstrip()
             print(f"Checking {file}: '{name}'")
             if camera_name in name:
+                print(f"MATCH FOUND: '{camera_name}' in '{name}'")
                 try:
                     cam_num = int(re.search(r"\d+$", file).group(0))
                     found = "FOUND!"
