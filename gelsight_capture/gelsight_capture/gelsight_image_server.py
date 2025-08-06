@@ -42,7 +42,7 @@ class GelsightImageServer(Node):
         # image publisher
         self.image_publisher = self.create_publisher(
             msg_type=Image, 
-            topic='/follower/right/gelsight/image', 
+            topic='/camera/gelsight', 
             qos_profile=10)
         image_timer_period = 0.03  # in seconds. roughly 33 Hz
         self.image_timer = self.create_timer(
