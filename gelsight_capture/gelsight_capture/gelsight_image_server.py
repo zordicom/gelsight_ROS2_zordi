@@ -22,6 +22,9 @@ class GelsightImageServer(Node):
 
         # it's complicated why we need to load the config path instead of the content of config. See launch file for explanation
         self.declare_parameter(name = 'config_path', value = '')
+        self.declare_parameter(name='output_topic', value='/camera/gelsight')
+        output_topic = self.get_parameter('output_topic').get_parameter_value().string_value
+
         config_path = self.get_parameter('config_path').get_parameter_value().string_value
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
@@ -41,9 +44,10 @@ class GelsightImageServer(Node):
         ############################ Publisher Setup ###########################################
         # image publisher
         self.image_publisher = self.create_publisher(
-            msg_type=Image, 
-            topic='/camera/gelsight', 
-            qos_profile=10)
+        msg_type=Image, 
+        topic=output_topic, 
+        qos_profile=10)
+
         image_timer_period = 0.03  # in seconds. roughly 33 Hz
         self.image_timer = self.create_timer(
             timer_period_sec=image_timer_period, 

@@ -1,5 +1,5 @@
 # Device Name
-# device_name: "DIGIT: DIGIT"
+device_name: "DIGIT: DIGIT"
 # device_name: "GelSight Mini R0B 2D04-CPXB: Ge"
 
 # device_name: "video4"
@@ -13,7 +13,7 @@ mmpp: 0.0634
 h: 240
 w: 320
 # Pressing depth in m
-press_depth: 0.001
+press_depth: 0.0001
 
 # All the number has no concern in terms of axis
 # length of 3D printed mount in milimeter

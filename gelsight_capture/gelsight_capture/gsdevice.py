@@ -11,13 +11,78 @@ if os.name == 'nt':
 
 VIDEO_DEVICES = 4 # video device is labelled as 4 in windows
 
+def _udev_props_for_devnode(devnode: str) -> dict:
+    """Return udev property map for a /dev/videoN node."""
+    try:
+        out = subprocess.run(
+            ["udevadm", "info", "-q", "property", "-n", devnode],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        props: dict[str, str] = {}
+        for line in out.stdout.splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                props[key.strip()] = value.strip()
+        return props
+    except Exception:
+        return {}
+
+
 def get_camera_id(camera_name) -> int:
-    """Find the camera ID that has the corresponding camera name."""
+    """Find the camera ID by name substring (default) or by selectors serial:/path:/video:."""
     cam_num = None
     working_cam_num = None
     if os.name == 'nt':
         cam_num = find_cameras_windows(camera_name)
     else:
+        # Enhanced selectors (backward compatible):
+        #  - 'video:23'   → use /dev/video23 directly
+        #  - 'serial:XXXX'→ match udev ID_SERIAL_SHORT exactly (case-insensitive)
+        #  - 'path:XXXX'  → match udev ID_PATH exactly
+        if isinstance(camera_name, str) and ":" in camera_name:
+            selector, value = camera_name.split(":", 1)
+            selector = selector.strip().lower()
+            value_cmp = value.strip()
+            if selector == "video":
+                try:
+                    cam_num = int(value_cmp)
+                    return cam_num
+                except Exception:
+                    pass
+            elif selector in ("serial", "path"):
+                # Collect all matching candidates, then prefer those that open successfully
+                matching_candidates = []  # list of (cam_num_candidate, devnode)
+                for file in os.listdir("/sys/class/video4linux"):
+                    try:
+                        cam_num_candidate = int(re.search(r"\d+$", file).group(0))
+                    except Exception:
+                        continue
+                    devnode = f"/dev/video{cam_num_candidate}"
+                    props = _udev_props_for_devnode(devnode)
+                    if selector == "serial":
+                        serial_short = props.get("ID_SERIAL_SHORT", "")
+                        if serial_short and serial_short.lower() == value_cmp.lower():
+                            print(f"Selector match (serial): {devnode} -> {serial_short}")
+                            matching_candidates.append((cam_num_candidate, devnode))
+                    elif selector == "path":
+                        id_path = props.get("ID_PATH", "")
+                        if id_path and id_path == value_cmp:
+                            print(f"Selector match (path): {devnode} -> {id_path}")
+                            matching_candidates.append((cam_num_candidate, devnode))
+                # Try to open candidates to find a working node
+                for num, node in sorted(matching_candidates):
+                    test_cap = cv2.VideoCapture(num)
+                    if test_cap.isOpened():
+                        test_cap.release()
+                        print(f"Selector working: {node}")
+                        return num
+                    test_cap.release()
+                # If none opened, return first match (will error later with clear message)
+                if matching_candidates:
+                    return matching_candidates[0][0]
+
         # For DIGIT cameras, hardcode to video5 since we know it works
         # if "DIGIT" in camera_name:
         #     print("Using hardcoded video5 for DIGIT camera")
