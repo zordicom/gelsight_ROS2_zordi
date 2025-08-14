@@ -25,3 +25,15 @@ gel_thickness: 4
 # the sensor's center is not exactly the centor of the mount
 x_offset: 0.25
 y_offset: 0.5
+
+
+
+
+
+
+# get the serial number of the cameras and tactile sensors
+
+# for d in /dev/video*; do
+#   echo "=== $d ===";
+#   udevadm info -q property -n "$d" | egrep 'ID_(SERIAL|SERIAL_SHORT|PATH)';
+# done
